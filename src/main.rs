@@ -5,6 +5,7 @@ pub mod dns;
 pub mod errors;
 pub mod http;
 pub mod plumbing;
+pub mod rules;
 
 use crate::args::{Args, Subcommand};
 use crate::daemon::Daemon;
@@ -29,6 +30,7 @@ async fn main() -> Result<()> {
         Subcommand::Daemon(daemon) => {
             daemon::run(&Daemon {
                 bind_addr: daemon.bind_addr,
+                config: daemon.config,
             })
             .await?;
         }

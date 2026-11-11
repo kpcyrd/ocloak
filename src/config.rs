@@ -1,10 +1,23 @@
+use crate::errors::*;
 use serde::Deserialize;
 use std::collections::BTreeSet;
+use std::path::Path;
 
 #[derive(Debug, Default, PartialEq, Deserialize)]
 pub struct Config {
     #[serde(default)]
     pub allowed: Vec<Rule>,
+}
+
+impl Config {
+    pub async fn load(path: &Path) -> Result<Self> {
+        let content = tokio::fs::read_to_string(path)
+            .await
+            .with_context(|| anyhow!("Failed to read config file: {path:?}"))?;
+        let config = toml::from_str::<Config>(&content)
+            .with_context(|| anyhow!("Failed to parse config file: {path:?}"))?;
+        Ok(config)
+    }
 }
 
 #[derive(Debug, Default, PartialEq, Deserialize)]
@@ -19,8 +32,8 @@ pub struct Rule {
 }
 
 impl Rule {
-    pub fn matches_host(&self, hostname: &str) -> bool {
-        self.hosts.contains(hostname)
+    pub fn contains_host(&self, text: &str) -> bool {
+        self.hosts.contains(text)
     }
 }
 

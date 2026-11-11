@@ -1,7 +1,12 @@
+use crate::config::Config;
+use crate::dns::Resolver;
 use crate::errors::*;
 use crate::http;
+use crate::rules::Destination;
 use std::convert::Infallible;
 use std::net::SocketAddr;
+use std::path::PathBuf;
+use std::sync::Arc;
 use warp::{
     Filter, filters::path::Tail, http::StatusCode, hyper::body::Bytes, reject::MethodNotAllowed,
     reply::Reply,
@@ -11,31 +16,13 @@ const MAX_REQUEST_SIZE: u64 = 1024 * 1024 * 8;
 
 pub struct Daemon {
     pub bind_addr: SocketAddr,
-}
-
-fn map_path_to_url(path: &str) -> Option<String> {
-    let (host, tail) = path
-        .split_once('/')
-        .map(|(host, tail)| (host, Some(tail)))
-        .unwrap_or_else(|| (path, None));
-
-    if host.is_empty() {
-        return None;
-    }
-
-    let mut url = format!("https://{host}/");
-
-    if let Some(tail) = tail {
-        url.push_str(tail);
-    } else {
-        url.push_str(".well-known/ohttp-gateway");
-    }
-
-    Some(url)
+    pub config: PathBuf,
 }
 
 async fn ohttp_post(
     http: reqwest::Client,
+    resolver: Arc<Resolver>,
+    config: Arc<Config>,
     path: Tail,
     content_type: Option<String>,
     body: Bytes,
@@ -48,15 +35,34 @@ async fn ohttp_post(
         .into_response());
     }
 
-    let Some(url) = map_path_to_url(path.as_str()) else {
+    let Some(dest) = Destination::parse(path.as_str()) else {
         return Ok(
             warp::reply::with_status("400 - Host is required\n", StatusCode::BAD_REQUEST)
                 .into_response(),
         );
     };
 
-    // TODO: validate the host against the rule set. e.g. ports can only be used if the host is explicitly allowed
+    // Validate the destination against the rule set
+    let dest = match dest.authorize(&resolver, &config.allowed).await {
+        Ok(Some(dest)) => dest,
+        Ok(None) => {
+            return Ok(warp::reply::with_status(
+                "403 - Destination not permitted\n",
+                StatusCode::FORBIDDEN,
+            )
+            .into_response());
+        }
+        Err(err) => {
+            error!("Error: {err:#}");
+            return Ok(
+                warp::reply::with_status("502 - Bad Gateway\n", StatusCode::BAD_GATEWAY)
+                    .into_response(),
+            );
+        }
+    };
 
+    // Prepare the request
+    let url = dest.to_url();
     debug!("Forwarding ohttp request: {url:?} ({} bytes)", body.len());
     trace!("Forwarding ohttp request body: {body:?}");
 
@@ -107,8 +113,16 @@ pub async fn run(daemon: &Daemon) -> Result<()> {
     let http = http::client()?;
     let http = warp::any().map(move || http.clone());
 
+    let resolver = Arc::new(Resolver::new().await);
+    let resolver = warp::any().map(move || resolver.clone());
+
+    let config = Arc::new(Config::load(&daemon.config).await?);
+    let config = warp::any().map(move || config.clone());
+
     let ohttp = warp::post()
         .and(http)
+        .and(resolver)
+        .and(config)
         .and(warp::path("ohttp"))
         .and(warp::path::tail())
         .and(warp::header::optional::<String>("content-type"))
@@ -123,26 +137,4 @@ pub async fn run(daemon: &Daemon) -> Result<()> {
     warp::serve(routes.with(log)).run(daemon.bind_addr).await;
 
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_map_path_to_url() {
-        assert_eq!(
-            map_path_to_url("example.com").as_deref(),
-            Some("https://example.com/.well-known/ohttp-gateway")
-        );
-        assert_eq!(
-            map_path_to_url("example.com/some/path").as_deref(),
-            Some("https://example.com/some/path")
-        );
-        assert_eq!(
-            map_path_to_url("example.com/").as_deref(),
-            Some("https://example.com/")
-        );
-        assert_eq!(map_path_to_url("").as_deref(), None);
-    }
 }

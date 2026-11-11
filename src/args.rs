@@ -1,5 +1,6 @@
 use clap::{ArgAction, Parser};
 use std::net::SocketAddr;
+use std::path::PathBuf;
 
 #[derive(Debug, Parser)]
 pub struct Args {
@@ -21,6 +22,8 @@ pub enum Subcommand {
 pub struct Daemon {
     #[arg(short = 'B', long, default_value = "127.0.0.1:3000", env = "HTTP_ADDR")]
     pub bind_addr: SocketAddr,
+    #[arg(short = 'c', long)]
+    pub config: PathBuf,
 }
 
 #[derive(Debug, Parser)]
