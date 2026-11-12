@@ -2,12 +2,14 @@ use crate::errors::*;
 use serde::Deserialize;
 use serde_with::{DisplayFromStr, serde_as};
 use std::collections::BTreeSet;
+use std::net::SocketAddr;
 use std::path::Path;
 use std::str::FromStr;
 use std::time::Duration;
 
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct Config {
+    pub daemon: Daemon,
     pub defaults: Defaults,
     #[serde(default)]
     pub allowed: Vec<Rule>,
@@ -22,6 +24,11 @@ impl Config {
             .with_context(|| anyhow!("Failed to parse config file: {path:?}"))?;
         Ok(config)
     }
+}
+
+#[derive(Debug, PartialEq, Deserialize)]
+pub struct Daemon {
+    pub bind_addr: SocketAddr,
 }
 
 #[serde_as]
@@ -136,6 +143,9 @@ mod tests {
         assert_eq!(
             config,
             Config {
+                daemon: Daemon {
+                    bind_addr: "127.0.0.1:1312".parse().unwrap()
+                },
                 defaults: Defaults {
                     max_request_size: "8 MiB".parse().unwrap(),
                     user_agent: "ohttp-relay".into(),
@@ -180,7 +190,7 @@ mod tests {
         assert_eq!(value.value, 16 * 1024);
 
         let value = "1 GiB".parse::<HumanSize>().unwrap();
-        assert_eq!(value.value, 1 * 1024 * 1024 * 1024);
+        assert_eq!(value.value, 1024 * 1024 * 1024);
 
         let value = "512B".parse::<HumanSize>().unwrap();
         assert_eq!(value.value, 512);

@@ -8,6 +8,7 @@ pub mod plumbing;
 pub mod rules;
 
 use crate::args::{Args, Subcommand};
+use crate::config::Config;
 use crate::daemon::Daemon;
 use crate::errors::*;
 use clap::Parser;
@@ -28,11 +29,10 @@ async fn main() -> Result<()> {
 
     match args.subcommand {
         Subcommand::Daemon(daemon) => {
-            daemon::run(&Daemon {
-                bind_addr: daemon.bind_addr,
-                config: daemon.config,
-            })
-            .await?;
+            let config = Config::load(&daemon.config).await?;
+            let bind_addr = daemon.bind_addr.unwrap_or(config.daemon.bind_addr);
+
+            daemon::run(Daemon { bind_addr, config }).await?;
         }
         Subcommand::Plumbing(plumbing) => plumbing::run(&plumbing).await?,
     }

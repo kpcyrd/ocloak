@@ -5,7 +5,6 @@ use crate::http;
 use crate::rules::Destination;
 use std::convert::Infallible;
 use std::net::SocketAddr;
-use std::path::PathBuf;
 use std::sync::Arc;
 use warp::{
     Filter, filters::path::Tail, http::StatusCode, hyper::body::Bytes, reject::MethodNotAllowed,
@@ -14,7 +13,7 @@ use warp::{
 
 pub struct Daemon {
     pub bind_addr: SocketAddr,
-    pub config: PathBuf,
+    pub config: Config,
 }
 
 async fn ohttp_post(
@@ -107,8 +106,8 @@ async fn rejection(err: warp::Rejection) -> Result<impl warp::Reply, Infallible>
     Ok(warp::reply::with_status(message, code))
 }
 
-pub async fn run(daemon: &Daemon) -> Result<()> {
-    let config = Arc::new(Config::load(&daemon.config).await?);
+pub async fn run(daemon: Daemon) -> Result<()> {
+    let config = Arc::new(daemon.config);
 
     let http = http::client(&config.defaults)?;
     let http = warp::any().map(move || http.clone());
