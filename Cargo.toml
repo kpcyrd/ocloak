@@ -1,6 +1,11 @@
 [package]
 name = "ocloak"
 version = "0.1.0"
+description = "Open RFC 9458 OHTTP Relay"
+authors = ["kpcyrd <git@rxv.cc>"]
+license = "GPL-3.0-or-later"
+repository = "https://github.com/kpcyrd/ocloak"
+keywords = ["ohttp", "rfc9458", "rfc9540", "proxy"]
 edition = "2024"
 
 [dependencies]

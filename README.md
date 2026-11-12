@@ -1,4 +1,11 @@
-# ocloak - open proxy oblivious hyper text transfer protocol daemon
+# ocloak - Open RFC 9458 OHTTP Relay
+
+See [Oblivious HTTP](https://en.wikipedia.org/wiki/Oblivious_HTTP) and [RFC
+9458](https://www.rfc-editor.org/rfc/rfc9458) for details.
+
+Optionally uses [RFC 9540](https://www.rfc-editor.org/rfc/rfc9540) to require
+the `ohttp` parameter in `HTTPS` DNS records as opt-in signal to receive
+anonymized requests.
 
 ```sh
 cargo run --release -- plumbing check-dns -v \
