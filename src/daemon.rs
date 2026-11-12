@@ -12,8 +12,6 @@ use warp::{
     reply::Reply,
 };
 
-const MAX_REQUEST_SIZE: u64 = 1024 * 1024 * 8;
-
 pub struct Daemon {
     pub bind_addr: SocketAddr,
     pub config: PathBuf,
@@ -110,23 +108,26 @@ async fn rejection(err: warp::Rejection) -> Result<impl warp::Reply, Infallible>
 }
 
 pub async fn run(daemon: &Daemon) -> Result<()> {
-    let http = http::client()?;
+    let config = Arc::new(Config::load(&daemon.config).await?);
+
+    let http = http::client(&config.defaults)?;
     let http = warp::any().map(move || http.clone());
 
     let resolver = Arc::new(Resolver::new().await);
     let resolver = warp::any().map(move || resolver.clone());
 
-    let config = Arc::new(Config::load(&daemon.config).await?);
-    let config = warp::any().map(move || config.clone());
+    let content_length_limit =
+        warp::body::content_length_limit(config.defaults.max_request_size.value);
+    let config_filter = warp::any().map(move || config.clone());
 
     let ohttp = warp::post()
         .and(http)
         .and(resolver)
-        .and(config)
+        .and(config_filter)
         .and(warp::path("ohttp"))
         .and(warp::path::tail())
         .and(warp::header::optional::<String>("content-type"))
-        .and(warp::body::content_length_limit(MAX_REQUEST_SIZE))
+        .and(content_length_limit)
         .and(warp::body::bytes())
         .and_then(ohttp_post);
 
