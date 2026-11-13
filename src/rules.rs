@@ -71,7 +71,7 @@ impl<'a> Destination<'a> {
                 let discovered = if let Some(result) = dns_ohttp_discovery_available {
                     result
                 } else {
-                    let result = resolver.query(&self.host).await?.unwrap_or(false);
+                    let result = resolver.probe_ohttp(&self.host).await?.unwrap_or(false);
                     dns_ohttp_discovery_available = Some(result);
                     result
                 };

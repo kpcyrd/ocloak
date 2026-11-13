@@ -30,10 +30,18 @@ pub struct Daemon {
 pub enum Plumbing {
     /// Check DNS records for RFC 9540 OHTTP discovery
     CheckDns(CheckDns),
+    /// Query and print HTTPS RR for the given names
+    QueryHttpsRr(QueryHttpsRr),
 }
 
 #[derive(Debug, Parser)]
 pub struct CheckDns {
+    #[arg(required = true)]
+    pub names: Vec<String>,
+}
+
+#[derive(Debug, Parser)]
+pub struct QueryHttpsRr {
     #[arg(required = true)]
     pub names: Vec<String>,
 }

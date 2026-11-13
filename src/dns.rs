@@ -3,8 +3,8 @@ use domain::base::{Name, Question, Rtype};
 use domain::rdata::Soa;
 use domain::rdata::svcb::Https;
 use domain::rdata::svcb::value::AllValues;
-use domain::resolv::stub::StubResolver;
 use domain::resolv::stub::conf::{ResolvConf, SearchSuffix};
+use domain::resolv::stub::{Answer, StubResolver};
 use tokio::time::{Duration, Instant};
 
 const MAX_CACHE_ENTRIES: u64 = 64_000;
@@ -48,7 +48,19 @@ impl Resolver {
         Self { resolver, cache }
     }
 
-    pub async fn query_cache_only(&self, name: &str) -> Option<Option<bool>> {
+    pub async fn query(&self, name: &str, qtype: Rtype) -> Result<Answer> {
+        let qname: Name<Vec<u8>> = name.parse()?;
+        let question = Question::new_in(&qname, qtype);
+
+        let answer = self
+            .resolver
+            .query(question)
+            .await
+            .with_context(|| anyhow!("Failed to send DNS request for {name:?}"))?;
+        Ok(answer)
+    }
+
+    pub async fn probe_ohttp_cache_only(&self, name: &str) -> Option<Option<bool>> {
         self.cache
             .get(name)
             .await
@@ -56,19 +68,12 @@ impl Resolver {
             .map(|e| e.value)
     }
 
-    pub async fn query(&self, name: &str) -> Result<Option<bool>> {
-        if let Some(entry) = self.query_cache_only(name).await {
+    pub async fn probe_ohttp(&self, name: &str) -> Result<Option<bool>> {
+        if let Some(entry) = self.probe_ohttp_cache_only(name).await {
             return Ok(entry);
         }
 
-        let qname: Name<Vec<u8>> = name.parse()?;
-        let question = Question::new_in(&qname, Rtype::HTTPS);
-
-        let answer = self
-            .resolver
-            .query(question)
-            .await
-            .with_context(|| anyhow!("Failed to send DNS request for {name:?}"))?;
+        let answer = self.query(name, Rtype::HTTPS).await?;
         let answer = answer.answer()?;
 
         let mut found_ohttp = None;
