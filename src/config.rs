@@ -155,24 +155,59 @@ mod tests {
                 },
                 allowed: vec![
                     Rule {
-                        hosts: [
-                            "ccc.de",
-                            "crypto.cloudflare.com",
-                            "example.com",
-                            "ohttp-repro.exe.xyz",
-                            "ohttp.test.orca.toys",
-                            "target.ohttp.info",
-                            "x.y.z.abc",
-                        ]
-                        .into_iter()
-                        .map(String::from)
-                        .collect(),
+                        hosts: ["*".into(),].into_iter().collect(),
+                        path: None,
+                        require_dns_ohttp_discovery: true,
+                        ..Default::default()
+                    },
+                ]
+            }
+        );
+    }
+
+    #[tokio::test]
+    async fn parse_expanded_example_config() {
+        let config = fs::read_to_string("contrib/ocloak.conf").await.unwrap();
+        let config = config.lines().map(|line| line.trim_prefix("#")).fold(
+            String::new(),
+            |mut acc, line| {
+                acc.push_str(line);
+                acc.push('\n');
+                acc
+            },
+        );
+        let config = toml::from_str::<Config>(&config).unwrap();
+        assert_eq!(
+            config,
+            Config {
+                daemon: Daemon {
+                    bind_addr: "127.0.0.1:1312".parse().unwrap()
+                },
+                defaults: Defaults {
+                    max_request_size: "8 MiB".parse().unwrap(),
+                    user_agent: "ohttp-relay".into(),
+                    connect_timeout: "15s".parse().unwrap(),
+                    read_timeout: "30s".parse().unwrap(),
+                    max_redirects: 2,
+                },
+                allowed: vec![
+                    Rule {
+                        hosts: ["example.com"].into_iter().map(String::from).collect(),
+                        ..Default::default()
+                    },
+                    Rule {
+                        hosts: ["example.com"].into_iter().map(String::from).collect(),
                         arbitrary_paths: true,
                         ..Default::default()
                     },
                     Rule {
+                        hosts: ["example.com"].into_iter().map(String::from).collect(),
+                        path: Some("/.not-well-known/ohttp-gateway".into()),
+                        ..Default::default()
+                    },
+                    Rule {
                         hosts: ["*".into(),].into_iter().collect(),
-                        path: Some("/.well-known/ohttp-gateway".into()),
+                        path: None,
                         require_dns_ohttp_discovery: true,
                         ..Default::default()
                     },
