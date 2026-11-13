@@ -60,7 +60,7 @@ impl<'a> Destination<'a> {
     ) -> Result<Option<Cow<'_, Self>>> {
         let mut dns_ohttp_discovery_available = None;
 
-        for rule in rules {
+        for (i, rule) in rules.iter().enumerate() {
             // Check if the rule's `host=` selector applies
             if !self.matches_rule_selector(rule) {
                 continue;
@@ -81,21 +81,33 @@ impl<'a> Destination<'a> {
                 }
             }
 
-            if self.path.is_none() {
+            let dest = if self.path.is_none() {
                 // If the destination has not specified a path
                 if let Some(path) = &rule.path {
                     // The rule specifies a path, use it
-                    return Ok(Some(Cow::Owned(Self {
+                    Cow::Owned(Self {
                         host: self.host.clone(),
                         path: Some(Cow::Borrowed(path)),
-                    })));
+                    })
                 } else {
                     // Leave the path as `None`, implies default path
-                    return Ok(Some(Cow::Borrowed(self)));
+                    Cow::Borrowed(self)
                 }
             } else if rule.arbitrary_paths {
                 // If a custom path is set and the rule allows arbitrary paths, permit it
-                return Ok(Some(Cow::Borrowed(self)));
+                Cow::Borrowed(self)
+            } else {
+                continue;
+            };
+
+            trace!("Request has matched rule #{i}");
+
+            if !rule.deny {
+                // Return the resolved, permitted destination
+                return Ok(Some(dest));
+            } else {
+                // Indicate the request has no permitted destination
+                return Ok(None);
             }
         }
 

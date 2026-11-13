@@ -117,6 +117,8 @@ pub struct Rule {
     pub require_dns_ohttp_discovery: bool,
     #[serde(default)]
     pub arbitrary_paths: bool,
+    #[serde(default)]
+    pub deny: bool,
 }
 
 impl Rule {
@@ -153,14 +155,12 @@ mod tests {
                     read_timeout: "30s".parse().unwrap(),
                     max_redirects: 2,
                 },
-                allowed: vec![
-                    Rule {
-                        hosts: ["*".into(),].into_iter().collect(),
-                        path: None,
-                        require_dns_ohttp_discovery: true,
-                        ..Default::default()
-                    },
-                ]
+                allowed: vec![Rule {
+                    hosts: ["*".into()].into_iter().collect(),
+                    path: None,
+                    require_dns_ohttp_discovery: true,
+                    ..Default::default()
+                },]
             }
         );
     }
@@ -206,7 +206,7 @@ mod tests {
                         ..Default::default()
                     },
                     Rule {
-                        hosts: ["*".into(),].into_iter().collect(),
+                        hosts: ["*".into()].into_iter().collect(),
                         path: None,
                         require_dns_ohttp_discovery: true,
                         ..Default::default()
