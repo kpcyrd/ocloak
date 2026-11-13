@@ -49,6 +49,7 @@ impl Resolver {
     }
 
     pub async fn query(&self, name: &str, qtype: Rtype) -> Result<Answer> {
+        debug!("Querying DNS for {name:?} with type {qtype:?}");
         let qname: Name<Vec<u8>> = name.parse()?;
         let question = Question::new_in(&qname, qtype);
 
@@ -127,6 +128,7 @@ impl Resolver {
                 .min()
                 .unwrap_or(DEFAULT_NEGATIVE_TTL)
         };
+        debug!("Finished processing DNS response");
 
         // Add to DNS cache, to avoid flooding nameservers
         self.cache

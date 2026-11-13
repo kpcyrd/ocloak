@@ -22,8 +22,8 @@ async fn main() -> Result<()> {
     let log_level = match args.verbose {
         0 => "ocloak=info,httpd=info",
         1 => "ocloak=debug,httpd=debug,info",
-        2 => "debug",
-        3 => "ocloak=trace,httpd=trace,debug",
+        2 => "ocloak=trace,httpd=trace,info",
+        3 => "debug",
         _ => "trace",
     };
     env_logger::init_from_env(Env::default().default_filter_or(log_level));

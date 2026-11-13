@@ -68,6 +68,11 @@ impl<'a> Destination<'a> {
 
             // If the rule requires DNS-based OHTTP discovery, check DNS if not done yet
             if rule.require_dns_ohttp_discovery {
+                trace!(
+                    "Rule requires DNS-based OHTTP discovery for host {:?}",
+                    self.host
+                );
+
                 let discovered = if let Some(result) = dns_ohttp_discovery_available {
                     result
                 } else {
@@ -76,7 +81,12 @@ impl<'a> Destination<'a> {
                     result
                 };
 
-                if !discovered {
+                if discovered {
+                    debug!(
+                        "Successfully detected DNS-based OHTTP discovery for host {:?}",
+                        self.host
+                    );
+                } else {
                     continue;
                 }
             }
@@ -107,10 +117,12 @@ impl<'a> Destination<'a> {
                 return Ok(Some(dest));
             } else {
                 // Indicate the request has no permitted destination
+                debug!("Request for host {:?} denied by rule #{i}", self.host);
                 return Ok(None);
             }
         }
 
+        debug!("Refusing request for host {:?}, no rule matched", self.host);
         Ok(None)
     }
 }
