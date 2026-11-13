@@ -206,6 +206,11 @@ mod tests {
                         ..Default::default()
                     },
                     Rule {
+                        hosts: ["example.com"].into_iter().map(String::from).collect(),
+                        deny: true,
+                        ..Default::default()
+                    },
+                    Rule {
                         hosts: ["*".into()].into_iter().collect(),
                         path: None,
                         require_dns_ohttp_discovery: true,

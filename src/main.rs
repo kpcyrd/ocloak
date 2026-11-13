@@ -6,6 +6,7 @@ pub mod errors;
 pub mod http;
 pub mod plumbing;
 pub mod rules;
+pub mod server;
 
 use crate::args::{Args, Subcommand};
 use crate::config::Config;

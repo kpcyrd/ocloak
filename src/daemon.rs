@@ -3,6 +3,7 @@ use crate::dns::Resolver;
 use crate::errors::*;
 use crate::http;
 use crate::rules::Destination;
+use crate::server;
 use std::convert::Infallible;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -134,7 +135,7 @@ pub async fn run(daemon: Daemon) -> Result<()> {
 
     let routes = ohttp.recover(rejection);
     info!("Starting HTTP server on {}", daemon.bind_addr);
-    warp::serve(routes.with(log)).run(daemon.bind_addr).await;
+    server::serve(routes.with(log), daemon.bind_addr).await?;
 
     Ok(())
 }
