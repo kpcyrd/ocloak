@@ -23,6 +23,10 @@ impl<'a> Destination<'a> {
             return None;
         }
 
+        if host.chars().any(|c| c.is_uppercase()) {
+            return None;
+        }
+
         let host = url::Host::parse(host).ok()?;
 
         Some(Self {
@@ -179,7 +183,7 @@ mod tests {
     }
 
     #[test]
-    fn test_map_path_to_url_invalid() {
+    fn test_map_path_to_url_invalid_host() {
         for host in [
             "invalid.host.\\q.example.com",
             "",
@@ -188,9 +192,22 @@ mod tests {
             "foo:bar@example.com",
             "example.com:8080",
             "example.com.",
+            "EXAMPLE.COM",
         ] {
             let dest = Destination::parse(host);
             assert!(dest.is_none(), "Host: {}", host);
+        }
+    }
+
+    #[test]
+    fn test_map_path_to_url_valid_host() {
+        for host in [
+            "example.com",
+            // Useful test case, but don't rely on this being valid in the future
+            "😺.com",
+        ] {
+            let dest = Destination::parse(host);
+            assert!(dest.is_some(), "Host: {}", host);
         }
     }
 
