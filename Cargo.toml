@@ -27,4 +27,5 @@ tokio-rustls = "0.26"
 tokio-util = "0.7"
 toml = "1"
 tower-service = "0.3"
+url = "2"
 warp = { version = "0.4", features = ["server"] }

@@ -5,7 +5,7 @@ use std::borrow::Cow;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Destination<'a> {
-    pub host: Cow<'a, str>,
+    pub host: url::Host,
     pub path: Option<Cow<'a, str>>,
 }
 
@@ -19,14 +19,24 @@ impl<'a> Destination<'a> {
             .map(|(host, tail)| (host, Some(tail)))
             .unwrap_or_else(|| (path, None));
 
-        if host.is_empty() {
+        if host.ends_with('.') {
             return None;
         }
 
+        let host = url::Host::parse(host).ok()?;
+
         Some(Self {
-            host: Cow::Borrowed(host),
+            host,
             path: tail.map(Cow::Borrowed),
         })
+    }
+
+    fn host(&self) -> Option<&str> {
+        if let url::Host::Domain(host) = &self.host {
+            Some(host)
+        } else {
+            None
+        }
     }
 
     /// Convert the destination into an ohttp-gateway URL
@@ -42,14 +52,12 @@ impl<'a> Destination<'a> {
         url
     }
 
-    /// Check if the destination has a port specified in the host
-    pub fn includes_port(&self) -> bool {
-        self.host.contains(':')
-    }
-
     /// Check if the destination matches a given rule's host filter
     pub fn matches_rule_selector(&self, rule: &Rule) -> bool {
-        rule.contains_host(&self.host) || (rule.contains_host("*") && !self.includes_port())
+        let Some(host) = self.host() else {
+            return false;
+        };
+        rule.contains_host(host) || rule.contains_host("*")
     }
 
     /// Check if the destination is allowed by evaluating all rules
@@ -60,6 +68,11 @@ impl<'a> Destination<'a> {
     ) -> Result<Option<Cow<'_, Self>>> {
         let mut dns_ohttp_discovery_available = None;
 
+        // Ensure the destination is a domain, not an IP address
+        let Some(host) = self.host() else {
+            return Ok(None);
+        };
+
         for (i, rule) in rules.iter().enumerate() {
             // Check if the rule's `host=` selector applies
             if !self.matches_rule_selector(rule) {
@@ -68,24 +81,18 @@ impl<'a> Destination<'a> {
 
             // If the rule requires DNS-based OHTTP discovery, check DNS if not done yet
             if rule.require_dns_ohttp_discovery {
-                trace!(
-                    "Rule requires DNS-based OHTTP discovery for host {:?}",
-                    self.host
-                );
+                trace!("Rule requires DNS-based OHTTP discovery for host {host:?}");
 
                 let discovered = if let Some(result) = dns_ohttp_discovery_available {
                     result
                 } else {
-                    let result = resolver.probe_ohttp(&self.host).await?.unwrap_or(false);
+                    let result = resolver.probe_ohttp(host).await?.unwrap_or(false);
                     dns_ohttp_discovery_available = Some(result);
                     result
                 };
 
                 if discovered {
-                    debug!(
-                        "Successfully detected DNS-based OHTTP discovery for host {:?}",
-                        self.host
-                    );
+                    debug!("Successfully detected DNS-based OHTTP discovery for host {host:?}");
                 } else {
                     continue;
                 }
@@ -118,12 +125,12 @@ impl<'a> Destination<'a> {
                 return Ok(Some(dest));
             } else {
                 // Indicate the request has no permitted destination
-                debug!("Request for host {:?} denied by rule #{i}", self.host);
+                debug!("Request for host {host:?} denied by rule #{i}");
                 return Ok(None);
             }
         }
 
-        debug!("Refusing request for host {:?}, no rule matched", self.host);
+        debug!("Refusing request for host {host:?}, no rule matched");
         Ok(None)
     }
 }
@@ -138,7 +145,7 @@ mod tests {
         assert_eq!(
             dest,
             Some(Destination {
-                host: Cow::Borrowed("example.com"),
+                host: url::Host::parse("example.com").unwrap(),
                 path: None,
             })
         );
@@ -151,7 +158,7 @@ mod tests {
         assert_eq!(
             dest,
             Some(Destination {
-                host: Cow::Borrowed("example.com"),
+                host: url::Host::parse("example.com").unwrap(),
                 path: Some(Cow::Borrowed("some/path")),
             })
         );
@@ -161,7 +168,7 @@ mod tests {
         assert_eq!(
             dest,
             Some(Destination {
-                host: Cow::Borrowed("example.com"),
+                host: url::Host::parse("example.com").unwrap(),
                 path: Some(Cow::Borrowed("")),
             })
         );
@@ -169,6 +176,22 @@ mod tests {
 
         let dest = Destination::parse("");
         assert_eq!(dest, None);
+    }
+
+    #[test]
+    fn test_map_path_to_url_invalid() {
+        for host in [
+            "invalid.host.\\q.example.com",
+            "",
+            " ",
+            "https://example.com",
+            "foo:bar@example.com",
+            "example.com:8080",
+            "example.com.",
+        ] {
+            let dest = Destination::parse(host);
+            assert!(dest.is_none(), "Host: {}", host);
+        }
     }
 
     #[tokio::test]
@@ -189,7 +212,7 @@ mod tests {
         assert_eq!(
             resolved.as_deref(),
             Some(&Destination {
-                host: Cow::Borrowed("example.com"),
+                host: url::Host::parse("example.com").unwrap(),
                 path: None,
             })
         );
@@ -210,7 +233,7 @@ mod tests {
         assert_eq!(
             resolved.as_deref(),
             Some(&Destination {
-                host: Cow::Borrowed("example.com"),
+                host: url::Host::parse("example.com").unwrap(),
                 path: Some(Cow::Borrowed(".not-well-known/ohttp-gateway")),
             })
         );
