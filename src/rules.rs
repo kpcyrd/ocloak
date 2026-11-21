@@ -23,7 +23,7 @@ impl<'a> Destination<'a> {
             return None;
         }
 
-        if host.chars().any(|c| c.is_uppercase()) {
+        if host.chars().any(|c| c.is_uppercase() || c == '%') {
             return None;
         }
 
@@ -205,6 +205,7 @@ mod tests {
             "example.com",
             // Useful test case, but don't rely on this being valid in the future
             "😺.com",
+            "www%2eexample.com",
         ] {
             let dest = Destination::parse(host);
             assert!(dest.is_some(), "Host: {}", host);
