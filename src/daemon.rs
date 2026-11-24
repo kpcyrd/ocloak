@@ -14,7 +14,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::fs;
 use tokio::io::{AsyncBufReadExt, BufReader};
-use tokio::time::{Duration, timeout};
+use tokio::time::{Duration, Instant, timeout_at};
 use tokio_util::io::ReaderStream;
 use warp::{
     Filter,
@@ -43,8 +43,9 @@ async fn read_body_stream(
     read_timeout: Duration,
     size_limit: usize,
 ) -> Result<Vec<u8>> {
+    let deadline = Instant::now() + read_timeout;
     let mut buf = Vec::new();
-    while let Some(chunk) = timeout(read_timeout, stream.next()).await?.transpose()? {
+    while let Some(chunk) = timeout_at(deadline, stream.next()).await?.transpose()? {
         let chunk = chunk.chunk();
 
         if buf.len().saturating_add(chunk.len()) > size_limit {
