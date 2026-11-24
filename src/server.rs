@@ -163,8 +163,10 @@ where
 
             let connection = builder.serve_connection(TokioIo::new(stream), service);
 
-            if let Err(err) = connection.await {
-                debug!("HTTP connection error: {err}");
+            match timeout(Duration::from_secs(120), connection).await {
+                Ok(Ok(())) => (),
+                Ok(Err(err)) => debug!("HTTP connection error: {err}"),
+                Err(_err) => debug!("HTTP connection timed out"),
             }
         });
     }
