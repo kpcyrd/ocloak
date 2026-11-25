@@ -14,7 +14,9 @@ pub struct Args {
 
 #[derive(Debug, Parser)]
 pub enum Subcommand {
+    /// Run the daemon process
     Daemon(Daemon),
+    /// Utilities for debugging and diagnostics (unstable interface)
     #[command(subcommand)]
     Plumbing(Plumbing),
 }
