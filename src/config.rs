@@ -331,7 +331,7 @@ asdf = []
     #[tokio::test]
     async fn parse_expanded_example_config() {
         let config = fs::read_to_string("contrib/ocloak.conf").await.unwrap();
-        let config = config.lines().map(|line| line.trim_prefix("#")).fold(
+        let config = config.lines().map(|line| line.strip_prefix("#").unwrap_or(line)).fold(
             String::new(),
             |mut acc, line| {
                 acc.push_str(line);

@@ -105,7 +105,7 @@ impl AsyncWrite for Stream {
 
 pub async fn serve<F, R>(routes: F, addr: SocketAddr, shared: Arc<Shared>) -> Result<()>
 where
-    F: Filter<Extract = (R,), Error = !> + Clone + Send + Sync + 'static,
+    F: Filter<Extract = (R,), Error = std::convert::Infallible> + Clone + Send + Sync + 'static,
     R: Reply,
 {
     let listener = TcpListener::bind(addr).await?;

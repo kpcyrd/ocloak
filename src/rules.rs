@@ -107,7 +107,7 @@ impl<'a> Destination<'a> {
                 // If the destination has not specified a path
                 if let Some(path) = &rule.path {
                     // The rule specifies a path, use it, but strip the leading slash if present
-                    let path = path.trim_prefix("/");
+                    let path = path.strip_prefix("/").unwrap_or(path);
                     Some(Cow::Owned(Self {
                         host: self.host.clone(),
                         path: Some(Cow::Borrowed(path)),
