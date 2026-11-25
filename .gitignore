@@ -1,3 +1,4 @@
 /target
 /contrib/*.1
 *.pem
+/result
